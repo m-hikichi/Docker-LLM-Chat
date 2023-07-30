@@ -1,7 +1,7 @@
 from llama_cpp import Llama
 
 
-model = Llama(model_path="/tmp/llama2-model/llama-2-7b-chat.ggmlv3.q8_0.bin")
+model = Llama(model_path="/tmp/llama2-model/llama-2-7b-chat.ggmlv3.q5_K_M.bin")
 conversation_history = ""
 
 while True:
