@@ -1,21 +1,16 @@
 from llama_cpp import Llama
 
 
-model = Llama(model_path="/tmp/llama2-model/llama-2-7b-chat.ggmlv3.q5_K_M.bin")
-conversation_history = ""
+llm = Llama(model_path="/tmp/llama2-model/llama-2-7b-chat.ggmlv3.q5_K_M.bin")
 
-while True:
-    user_input = input("> ")
-    conversation_history += "user: " + user_input + "\nllama:"
-
-    output = model(
-        conversation_history,
-        max_tokens=1024,
-        stop=["user:", "llama:"],
-        echo=True,
+# Reference: https://github.com/abetlen/llama-cpp-python
+print(
+    llm.create_chat_completion(
+        messages = [
+            {"role": "system", "content": "You are an assistant."},
+            {"role": "user", "content": "My name is Taro Yamada. My birthday is January 1. Nice to meet you."},
+            {'role': 'assistant', 'content': 'Nice to meet you too, Taro! How can I assist you today? Is there anything you would like to know or any task you would like me to help you with?'},
+            {"role": "user", "content": "Do you remember my birthday?"},
+        ]
     )
-
-    conversation_history += " "
-    llama_reply = output["choices"][0]["text"].replace(conversation_history, "")
-    print("> " + llama_reply + "\n")
-    conversation_history = output["choices"][0]["text"]
+)
