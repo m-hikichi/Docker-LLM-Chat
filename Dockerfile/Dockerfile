@@ -6,3 +6,4 @@ RUN wget -P /tmp/llama2-model https://huggingface.co/TheBloke/Llama-2-7B-Chat-GG
 
 RUN pip install --upgrade pip
 RUN pip install llama-cpp-python==0.1.77
+RUN pip install gradio==4.13.0
