@@ -11,7 +11,7 @@ def build_chat_ui():
     with gr.Blocks() as demo:
         markdown = gr.Markdown(
             """
-            # Chat with Llama2
+            # Chat with ELYZA
             """
         )
         chatinterface = gr.ChatInterface(chat_response)

@@ -1,7 +1,7 @@
 from llama_cpp import Llama
 
 
-llm = Llama(model_path="/tmp/llama2-model/llama-2-7b-chat.ggmlv3.q5_K_M.bin")
+llm = Llama(model_path="/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf", n_gpu_layers=-1)
 
 
 def create_prompt(system_prompt, message, history):

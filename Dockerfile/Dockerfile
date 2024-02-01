@@ -1,9 +1,14 @@
-FROM python:3.10
+FROM nvidia/cuda:12.2.2-devel-ubuntu20.04
 
-RUN mkdir -p /tmp/llama2-model
-# Download the recommended model at https://github.com/ggerganov/llama.cpp/discussions/20941
-RUN wget -P /tmp/llama2-model https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGML/resolve/main/llama-2-7b-chat.ggmlv3.q5_K_M.bin
+RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+RUN apt update && apt -y upgrade
+RUN apt install -y python3-pip
+RUN apt install -y wget
+
+RUN mkdir -p /models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf
+RUN wget -P /models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf https://huggingface.co/mmnga/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/resolve/main/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf
 
 RUN pip install --upgrade pip
-RUN pip install llama-cpp-python==0.1.77
-RUN pip install gradio==4.13.0
+COPY requirements.txt .
+ENV CMAKE_ARGS="-DLLAMA_CUBLAS=on"
+RUN pip install -r requirements.txt

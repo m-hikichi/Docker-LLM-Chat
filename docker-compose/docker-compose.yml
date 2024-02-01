@@ -5,8 +5,8 @@ services:
     build:
       context: ../Dockerfile
       dockerfile: Dockerfile
-    image: llama
-    container_name: llama
+    image: llm
+    container_name: llm
     volumes:
       - ../src:/app/src
     working_dir: /app
