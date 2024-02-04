@@ -1,10 +1,10 @@
 import gradio as gr
-from chat_llama2 import create_prompt, chat_llama2
+from chat_elyza import construct_prompt, generate_response_from_chat
 
 
-def chat_response(message, history):
-    prompt = create_prompt("You are an assistant.", message, history)
-    return chat_llama2(prompt)
+def chat(message, history):
+    prompt = construct_prompt("あなたは誠実で優秀な日本人のアシスタントです。", message, history)
+    return generate_response_from_chat(prompt)
 
 
 def build_chat_ui():
@@ -14,7 +14,7 @@ def build_chat_ui():
             # Chat with ELYZA
             """
         )
-        chatinterface = gr.ChatInterface(chat_response)
+        chat_interface = gr.ChatInterface(chat)
 
     return demo
 
