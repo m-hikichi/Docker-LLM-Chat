@@ -37,13 +37,13 @@ def construct_prompt(system_prompt, message, history):
     return prompt
 
 
-def generate_response_from_chat(prompt):
+def generate_response_from_chat(prompt, **kwargs):
     output = llm.create_completion(
         prompt=prompt,
-        max_tokens=4096,
-        temperature=0.2,
-        top_p=0.95,
-        top_k=40,
+        max_tokens=kwargs["max_tokens"],
+        temperature=kwargs["temperature"],
+        top_p=kwargs["top_p"],
+        top_k=kwargs["top_k"],
         min_p=0.05,
         typical_p=1.0,
         frequency_penalty=0.0,
@@ -52,3 +52,15 @@ def generate_response_from_chat(prompt):
         seed=None,
     )
     return output["choices"][0]["text"]
+
+
+def chat(message, history, system_prompt, **kwargs):
+    prompt = construct_prompt(system_prompt, message, history)
+    response_text = generate_response_from_chat(
+        prompt=prompt,
+        max_tokens=kwargs["max_tokens"],
+        temperature=kwargs["temperature"],
+        top_p=kwargs["top_p"],
+        top_k=kwargs["top_k"],
+    )
+    return response_text
