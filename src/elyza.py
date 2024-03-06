@@ -1,4 +1,21 @@
+import logging
+from typing import List, Optional, Union, Iterator
 from llama_cpp import Llama
+from llama_cpp.llama_types import (
+    CreateCompletionResponse,
+    CreateCompletionStreamResponse,
+)
+
+
+sh = logging.StreamHandler()
+sh_formatter = logging.Formatter(
+    "%(asctime)s %(levelname)s:%(message)s (%(name)s)", datefmt="%Y/%m/%d %p %I:%M:%S"
+)
+sh.setLevel(logging.DEBUG)
+sh.setFormatter(sh_formatter)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(sh)
 
 
 llm = Llama(
@@ -34,33 +51,39 @@ def construct_prompt(system_prompt, message, history):
         e_inst=E_INST,
     )
 
+    logger.debug(prompt)
     return prompt
 
 
-def generate_response_from_chat(prompt, **kwargs):
+def generate_response_from_chat(
+    prompt: Union[str, List[int]],
+    max_tokens: Optional[int] = 16,
+    temperature: float = 0.8,
+    top_p: float = 0.95,
+    top_k: int = 40,
+    min_p: float = 0.05,
+    typical_p: float = 1.0,
+    frequency_penalty: float = 0.0,
+    presence_penalty: float = 0.0,
+    repeat_penalty: float = 1.1,
+    stream: bool = False,
+    seed: Optional[int] = None,
+) -> Union[
+    Iterator[CreateCompletionResponse],
+    Iterator[CreateCompletionStreamResponse],
+]:
     output = llm.create_completion(
         prompt=prompt,
-        max_tokens=kwargs["max_tokens"],
-        temperature=kwargs["temperature"],
-        top_p=kwargs["top_p"],
-        top_k=kwargs["top_k"],
-        min_p=0.05,
-        typical_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        repeat_penalty=1.1,
-        seed=None,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        top_k=top_k,
+        min_p=min_p,
+        typical_p=typical_p,
+        frequency_penalty=frequency_penalty,
+        presence_penalty=presence_penalty,
+        repeat_penalty=repeat_penalty,
+        stream=stream,
+        seed=seed,
     )
     return output["choices"][0]["text"]
-
-
-def chat(message, history, system_prompt, **kwargs):
-    prompt = construct_prompt(system_prompt, message, history)
-    response_text = generate_response_from_chat(
-        prompt=prompt,
-        max_tokens=kwargs["max_tokens"],
-        temperature=kwargs["temperature"],
-        top_p=kwargs["top_p"],
-        top_k=kwargs["top_k"],
-    )
-    return response_text
