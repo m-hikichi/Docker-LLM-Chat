@@ -2,7 +2,7 @@ import gradio as gr
 import elyza
 
 
-def elyza_chat_wrapper(
+def elyza_chat(
     message, history, system_prompt, max_tokens, temperature, top_p, top_k
 ):
     prompt = elyza.construct_prompt(system_prompt, message, history)
@@ -12,8 +12,12 @@ def elyza_chat_wrapper(
         temperature=temperature,
         top_p=top_p,
         top_k=top_k,
+        stream=True,
     )
-    return result["choices"][0]["text"]
+    output = ""
+    for text in result:
+        output += text["choices"][0]["text"]
+        yield output
 
 
 def build_chat_ui():
@@ -60,7 +64,7 @@ def build_chat_ui():
     )
 
     chat_interface = gr.ChatInterface(
-        fn=elyza_chat_wrapper,
+        fn=elyza_chat,
         chatbot=chatbot,
         additional_inputs=[
             system_prompt_textbox,
