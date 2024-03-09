@@ -34,5 +34,7 @@ result = elyza.generate_response_from_chat(
     temperature=0.2,
     top_p=0.95,
     top_k=50,
+    stream=True,
 )
-print(result)
+for text in result:
+    print(text["choices"][0]["text"], flush=True, end="")

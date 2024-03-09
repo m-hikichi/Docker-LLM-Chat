@@ -72,7 +72,7 @@ def generate_response_from_chat(
     Iterator[CreateCompletionResponse],
     Iterator[CreateCompletionStreamResponse],
 ]:
-    output = llm.create_completion(
+    return llm.create_completion(
         prompt=prompt,
         max_tokens=max_tokens,
         temperature=temperature,
@@ -86,4 +86,3 @@ def generate_response_from_chat(
         stream=stream,
         seed=seed,
     )
-    return output["choices"][0]["text"]

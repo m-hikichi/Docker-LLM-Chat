@@ -13,7 +13,7 @@ def elyza_chat_wrapper(
         top_p=top_p,
         top_k=top_k,
     )
-    return result
+    return result["choices"][0]["text"]
 
 
 def build_chat_ui():
