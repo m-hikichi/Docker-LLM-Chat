@@ -1,23 +1,79 @@
 import gradio as gr
-import elyza
+from typing import List, Tuple
+from langchain.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from llamacpp import load_llamacpp_model
 
 
-def elyza_chat(
-    message, history, system_prompt, max_tokens, temperature, top_p, top_k
+llm_model = load_llamacpp_model(
+    model_path="/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
+    n_gpu_layers=-1,
+)
+
+
+def construct_llama2_prompt(
+    system_prompt: str,
+    message: str,
+    history: List[Tuple[str, str]],
 ):
-    prompt = elyza.construct_prompt(system_prompt, message, history)
-    result = elyza.generate_response_from_chat(
-        prompt=prompt,
-        max_tokens=max_tokens,
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k,
-        stream=True,
+    B_INST, E_INST = "[INST]", "[/INST]"
+    B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
+    B_OS, E_OS = "<s>", "</s>"
+
+    prompt = "{bos_token}{b_inst} {system}".format(
+        bos_token=B_OS, b_inst=B_INST, system=f"{B_SYS}{system_prompt}{E_SYS}"
     )
-    output = ""
-    for text in result:
-        output += text["choices"][0]["text"]
-        yield output
+
+    if history:
+        for user, assistant in history:
+            prompt += (
+                "{user} {e_inst}\n{assistant} {eos_token}\n{bos_token}{b_inst}".format(
+                    user=user,
+                    e_inst=E_INST,
+                    assistant=assistant,
+                    eos_token=E_OS,
+                    bos_token=B_OS,
+                    b_inst=B_INST,
+                )
+            )
+
+    prompt += "{message} {e_inst}".format(
+        message=message,
+        e_inst=E_INST,
+    )
+
+    return prompt
+
+
+def generate_chat_response(
+    message: str,
+    history: List[Tuple[str, str]],
+    system_prompt: str,
+    max_tokens: int,
+    temperature: float,
+    top_p: float,
+    top_k: int,
+):
+    # update parameters
+    llm_model.max_tokens = max_tokens
+    llm_model.temperature = temperature
+    llm_model.top_p = top_p
+    llm_model.top_k = top_k
+
+    # construct prompt
+    prompt = PromptTemplate(
+        input_variables=[],
+        template=construct_llama2_prompt(system_prompt, message, history),
+    )
+
+    # construct chain
+    chain = prompt | llm_model | StrOutputParser()
+
+    # inference
+    response = ""
+    for text in chain.stream({}):
+        response += text
+        yield response
 
 
 def build_chat_ui():
@@ -64,7 +120,7 @@ def build_chat_ui():
     )
 
     chat_interface = gr.ChatInterface(
-        fn=elyza_chat,
+        fn=generate_chat_response,
         chatbot=chatbot,
         additional_inputs=[
             system_prompt_textbox,
