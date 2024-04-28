@@ -6,7 +6,7 @@ from llamacpp import load_llamacpp_model
 
 
 llm_model = load_llamacpp_model(
-    model_path="/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
+    model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
     n_gpu_layers=-1,
 )
 

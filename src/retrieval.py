@@ -90,7 +90,7 @@ def construct_semantic_retriever(
 
 
 if __name__ == "__main__":
-    documents = load_documents("reference_documents")
+    documents = load_documents("/workspace/documents")
 
     splitted_documents = split_documents(
         documents=documents,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     semantic_retriever = construct_semantic_retriever(
         documents=splitted_documents,
         embedding_model=HuggingFaceEmbeddings(
-            model_name="/models/multilingual-e5-large"
+            model_name="/workspace/models/multilingual-e5-large"
         ),
         k=3,
     )
@@ -114,7 +114,7 @@ if __name__ == "__main__":
     )
 
     llm_model = load_llamacpp_model(
-        model_path="/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
+        model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
         n_ctx=2048,
         n_gpu_layers=-1,
         temperature=0.2,

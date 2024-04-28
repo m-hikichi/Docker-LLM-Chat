@@ -8,12 +8,14 @@ services:
     image: llm
     container_name: llm
     volumes:
-      - ../src:/app/src
-    working_dir: /app
+      - ../src:/workspace/src
+      - ../models:/workspace/models
+      - ../documents:/workspace/documents
+    working_dir: /workspace
     tty: true
     ports:
       - "7860:7860"
-    entrypoint: sh -c "cd /app/src && python3 gradio_app.py"
+    entrypoint: sh -c "cd /workspace/src && python3 gradio_app.py"
 
     deploy:
       resources:

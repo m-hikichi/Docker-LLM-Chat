@@ -1,6 +1,5 @@
-llama-cpp-python==0.2.38
-gradio==4.16.0
-langchain==0.1.7
-sentence-transformers==2.3.1
-faiss-cpu==1.7.4
-unstructured==0.11.8
+llama-cpp-python==0.2.65
+gradio==4.28.3
+langchain==0.1.16
+sentence-transformers==2.7.0
+faiss-cpu==1.8.0

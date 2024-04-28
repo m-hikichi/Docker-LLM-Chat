@@ -56,7 +56,7 @@ def load_llamacpp_model(
 if __name__ == "__main__":
     # load llm model
     llm_model = load_llamacpp_model(
-        model_path="/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
+        model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
         n_gpu_layers=-1,
         temperature=0.2,
         top_p=0.95,
