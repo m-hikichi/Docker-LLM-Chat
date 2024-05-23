@@ -6,6 +6,7 @@ from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
 from llamacpp import load_llamacpp_model
 
 
@@ -89,6 +90,12 @@ def construct_semantic_retriever(
     return semantic_retriever
 
 
+def format_docs(docs: List[langchain_core.documents.Document]) -> str:
+    return f"\n{'-'*100}\n".join(
+        [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
+    )
+
+
 if __name__ == "__main__":
     documents = load_documents("/workspace/documents")
 
@@ -107,12 +114,6 @@ if __name__ == "__main__":
         k=3,
     )
 
-    query = "イーブイからニンフィアに進化させる方法を教えてください。"
-    docs = semantic_retriever.get_relevant_documents(query=query)
-    context = f"\n{'-'*100}\n".join(
-        [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
-    )
-
     llm_model = load_llamacpp_model(
         model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
         n_ctx=2048,
@@ -123,7 +124,7 @@ if __name__ == "__main__":
     )
 
     prompt = PromptTemplate(
-        input_variables=["context", "query"],
+        input_variables=["context", "question"],
         template="""<s>[INST] <<SYS>>
 あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。
 なおコンテキスト情報に無い情報は回答に含めないでください。
@@ -134,9 +135,15 @@ if __name__ == "__main__":
 {context}
 
 # 質問
-{query}[/INST]""",
+{question}[/INST]""",
     )
 
-    chain = prompt | llm_model
+    chain = (
+        {"context": semantic_retriever | format_docs, "question": RunnablePassthrough()}
+        | prompt
+        | llm_model
+    )
 
-    print(chain.invoke({"context": context, "query": query}))
+    question = "イーブイからニンフィアに進化させる方法を教えてください。"
+    for text in chain.stream(question):
+        print(text, flush=True, end="")
