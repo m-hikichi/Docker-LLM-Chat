@@ -4,6 +4,7 @@ from pathlib import Path
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
+from langchain_core.vectorstores import VectorStoreRetriever
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -75,18 +76,23 @@ def construct_semantic_retriever(
     documents: List[langchain_core.documents.Document],
     embedding_model: langchain_core.embeddings.Embeddings,
     k: int = 4,
-) -> FAISS:
+    score_threshold: float = 0.0,
+) -> VectorStoreRetriever:
     """
     Args:
         documents :
         embedding_model :
         k : Amount of documents to return
+        score_threshold : Minimum relevance threshold for similarity_score_threshold
     """
     #
     vectorstore = FAISS.from_documents(documents, embedding_model)
 
     #
-    semantic_retriever = vectorstore.as_retriever(search_kwargs={"k": k})
+    semantic_retriever = vectorstore.as_retriever(
+        search_type="similarity_score_threshold",
+        search_kwargs={"k": k, "score_threshold": score_threshold},
+    )
     return semantic_retriever
 
 
