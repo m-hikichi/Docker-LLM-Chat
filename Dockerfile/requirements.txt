@@ -1,5 +1,7 @@
-llama-cpp-python==0.2.65
 gradio==4.28.3
 langchain==0.1.16
+langchain_huggingface==0.0.3
 sentence-transformers==2.7.0
+llama-cpp-python==0.2.65
+accelerate==0.31.0
 faiss-cpu==1.8.0
