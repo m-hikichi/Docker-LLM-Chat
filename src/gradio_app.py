@@ -2,12 +2,11 @@ import gradio as gr
 from typing import List, Tuple
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from llamacpp import load_llamacpp_model
+from llm_api import fetch_llm_api_model
 
 
-llm_model = load_llamacpp_model(
-    model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
-    n_gpu_layers=-1,
+llm_model = fetch_llm_api_model(
+    "http://text-generation-webui:5000/v1",
 )
 
 
@@ -45,6 +44,27 @@ def construct_llama2_prompt(
     return prompt
 
 
+def construct_llama3_prompt(
+    system_prompt: str,
+    message: str,
+    history: List[Tuple[str, str]],
+):
+    B_INST, E_INST = "[INST]", "[/INST]"
+    B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
+    B_OS, E_OS = "<s>", "</s>"
+
+    prompt = f"<|start_header_id|>system<|end_header_id|>\n\n{system_prompt}<|eot_id|>"
+
+    if history:
+        for user, assistant in history:
+            prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{user}<|eot_id|>"
+            prompt += f"<|start_header_id|>assistant<|end_header_id|>\n\n{assistant}<|eot_id|>"
+
+    prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+
+    return prompt
+
+
 def generate_chat_response(
     message: str,
     history: List[Tuple[str, str]],
@@ -58,12 +78,12 @@ def generate_chat_response(
     llm_model.max_tokens = max_tokens
     llm_model.temperature = temperature
     llm_model.top_p = top_p
-    llm_model.top_k = top_k
+    # llm_model.top_k = top_k
 
     # construct prompt
     prompt = PromptTemplate(
         input_variables=[],
-        template=construct_llama2_prompt(system_prompt, message, history),
+        template=construct_llama3_prompt(system_prompt, message, history),
     )
 
     # construct chain
@@ -93,6 +113,7 @@ def build_chat_ui():
         minimum=1,
         maximum=2048,
         value=512,
+        step=1,
         label="最大出力トークン数",
     )
 
@@ -130,7 +151,7 @@ def build_chat_ui():
             top_k_slider,
         ],
         additional_inputs_accordion=accordion,
-        title="ELYZA-japanese-Llama-2-13b-fast-instruct-gguf-demo",
+        title="Llama-3-ELYZA-JP-8B-demo",
         submit_btn="送信",
         retry_btn="🔄 同じ入力でもう一度生成",
         undo_btn="↩️ ひとつ前の状態に戻る",
