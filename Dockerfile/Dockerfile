@@ -1,10 +1,10 @@
-FROM nvidia/cuda:12.2.2-devel-ubuntu20.04
+FROM nvidia/cuda:12.5.1-devel-ubuntu22.04
 
 RUN ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
-RUN apt update && apt -y upgrade
-RUN apt install -y python3-pip
-
+RUN apt update
+RUN apt install -y python3.10-dev python3-pip
 RUN pip install --upgrade pip
+
+WORKDIR /tmp
 COPY requirements.txt .
-ENV CMAKE_ARGS="-DLLAMA_CUBLAS=on"
 RUN pip install -r requirements.txt
