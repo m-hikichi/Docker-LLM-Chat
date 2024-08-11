@@ -2,11 +2,12 @@ import gradio as gr
 from typing import List, Tuple
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from llm_api import fetch_llm_api_model
+from llms.llm_api import fetch_llm_api_model
 
 
 llm_model = fetch_llm_api_model(
     api_url="http://ollama:11434/v1",
+    api_key="dummy_api_key",
     model="ELYZA:8B-Q4_K_M",
 )
 
