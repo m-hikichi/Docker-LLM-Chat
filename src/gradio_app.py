@@ -6,7 +6,8 @@ from llm_api import fetch_llm_api_model
 
 
 llm_model = fetch_llm_api_model(
-    "http://text-generation-webui:5000/v1",
+    api_url="http://ollama:11434/v1",
+    model="ELYZA:8B-Q4_K_M",
 )
 
 
