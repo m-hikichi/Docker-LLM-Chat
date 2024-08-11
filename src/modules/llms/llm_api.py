@@ -82,3 +82,4 @@ if __name__ == "__main__":
     # inference
     for text in chain.stream({"query": "有名な犬種をリスト形式で教えてください"}):
         print(text, flush=True, end="")
+    print()
