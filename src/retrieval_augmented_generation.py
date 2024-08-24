@@ -1,14 +1,17 @@
-import langchain_core
-from typing import Iterable, List, Optional
 from pathlib import Path
+from typing import Iterable, List, Optional
+
+import langchain_core
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_core.vectorstores import VectorStoreRetriever
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.prompts import PromptTemplate
+from langchain_core.messages import SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain_core.runnables import RunnablePassthrough
+from langchain_core.vectorstores import VectorStoreRetriever
+
 from llms.llm_api import fetch_llm_api_model
-from embeddings.embedding_api import fetch_embedding_model
+from embeddings.huggingface_embedding import load_embedding_model
 
 
 def load_documents(
@@ -96,9 +99,8 @@ if __name__ == "__main__":
         chunk_overlap=0,
     )
 
-    embedding_model = fetch_embedding_model(
-        base_url="http://ollama:11434",
-        model_name="multilingual-e5-large",
+    embedding_model = load_embedding_model(
+        model_path="/workspace/models/multilingual-e5-large",
     )
 
     semantic_retriever = construct_semantic_retriever(
@@ -108,29 +110,21 @@ if __name__ == "__main__":
     )
 
     llm_model = fetch_llm_api_model(
-        api_url="http://ollama:11434/v1",
-        api_key="dummy_api_key",
         model="ELYZA:8B-Q4_K_M",
         temperature=0.2,
-        top_p=0.95,
         max_tokens=2048,
     )
 
-    prompt = PromptTemplate(
-        input_variables=["context", "question"],
-        template="""<|start_header_id|>system<|end_header_id|>
-
-あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            SystemMessage(
+                """あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。
 なおコンテキスト情報に無い情報は回答に含めないでください。
-コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。
-<|eot_id|><|start_header_id|>user<|end_header_id|>
-
-# コンテキスト情報
-{context}
-
-{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-
-""",
+コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。"""
+            ),
+            HumanMessagePromptTemplate.from_template("# コンテキスト情報\n{context}"),
+            HumanMessagePromptTemplate.from_template("# 質問\n{question}"),
+        ]
     )
 
     chain = (
@@ -141,5 +135,5 @@ if __name__ == "__main__":
 
     question = "イーブイからニンフィアに進化させる方法を教えてください。"
     for text in chain.stream(question):
-        print(text, flush=True, end="")
+        print(text.content, flush=True, end="")
     print()
