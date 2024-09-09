@@ -1,8 +1,6 @@
-from typing import List, Optional, Union
+from typing import Optional
 from langchain_community.llms import LlamaCpp
 from langchain.prompts import PromptTemplate
-from langchain_core.callbacks.base import BaseCallbackHandler, BaseCallbackManager
-from langchain.callbacks import StreamingStdOutCallbackHandler
 
 
 def load_llamacpp_model(
@@ -18,7 +16,6 @@ def load_llamacpp_model(
     top_k: Optional[int] = 40,
     streaming: bool = True,
     verbose: bool = True,
-    callbacks: Optional[Union[List[BaseCallbackHandler], BaseCallbackManager]] = None,
 ) -> LlamaCpp:
     """
     Args:
@@ -34,7 +31,6 @@ def load_llamacpp_model(
         top_k : The top-k value to use for sampling.
         streaming : Whether to stream the results, token by token.
         verbose : Print verbose output to stderr.
-        callbacks : Callbacks to add to the run trace.
     """
     return LlamaCpp(
         model_path=model_path,
@@ -49,34 +45,35 @@ def load_llamacpp_model(
         top_k=top_k,
         streaming=streaming,
         verbose=verbose,
-        callbacks=callbacks,
     )
 
 
 if __name__ == "__main__":
     # load llm model
     llm_model = load_llamacpp_model(
-        model_path="/workspace/models/ELYZA-japanese-Llama-2-13b-fast-instruct-gguf/ELYZA-japanese-Llama-2-13b-fast-instruct-q5_K_M.gguf",
+        model_path="/workspace/models/Llama-3-ELYZA-JP-8B-GGUF/Llama-3-ELYZA-JP-8B-q4_k_m.gguf",
         n_gpu_layers=-1,
         temperature=0.2,
         top_p=0.95,
         top_k=50,
-        callbacks=[StreamingStdOutCallbackHandler()],
     )
 
     # create prompt
     prompt = PromptTemplate(
         input_variables=["query"],
-        template="""<s>[INST] <<SYS>>\nあなたは誠実で優秀な日本人のアシスタントです。\n<</SYS>>\n\n{query}\n[/INST]""",
+        template="""<|start_header_id|>system<|end_header_id|>
+
+あなたは誠実で優秀な日本人のアシスタントです。<|eot_id|><|start_header_id|>user<|end_header_id|>
+
+{query}<|eot_id|><|start_header_id|>assistant<|end_header_id|>
+
+""",
     )
 
     # construct chain
     chain = prompt | llm_model
 
     # inference
-    for text in chain.invoke({"query": "有名な犬種をリスト形式で教えてください"}):
-        try:
-            print(text["text"], flush=True, end="")
-        except TypeError:
-            pass
+    for text in chain.stream({"query": "有名な犬種をリスト形式で教えてください"}):
+        print(text, flush=True, end="")
     print()
