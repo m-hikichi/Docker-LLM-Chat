@@ -19,9 +19,6 @@ class State(TypedDict):
 
 # Node の作成
 def chatbot(state: State):
-    if state["api_call_count"] is None:
-        state["api_call_count"] = 0
-
     return {
         "messages": [llm_model.invoke(state["messages"])],
         "api_call_count": state["api_call_count"] + 1,
@@ -39,6 +36,6 @@ graph.set_finish_point("chatbot")
 
 # Graph のコンパイル
 runner = graph.compile()
-print(
-    runner.invoke({"messages": ["こんにちは"]})
-)
+response = runner.invoke({"messages": ["こんにちは"], "api_call_count": 0})
+print(response)
+print(response["messages"][-1].content)
