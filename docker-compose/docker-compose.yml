@@ -28,3 +28,22 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  neo4j:
+    image: neo4j:5.24.1-community-bullseye
+    container_name: neo4j
+    volumes:
+      - ../neo4j/data:/data
+      - ../neo4j/plugins:/plugins
+    environment:
+      # reference: https://youtu.be/nkbyD4joa0A?si=il-BN43kvp4JxCeN
+      NEO4J_AUTH: "neo4j/password"
+      NEO4J_apoc_export_file_enabled: "true"
+      NEO4J_apoc_import_file_enabled: "true"
+      NEO4J_apoc_import_file_use__neo4j__config: "true"
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*"
+      NEO4JLABS_PLUGINS: '[ "apoc" ]'
+    tty: true
+    ports:
+      - "7474:7474"
+      - "7687:7687"
