@@ -2,18 +2,18 @@
 
 import asyncio
 from typing import Annotated, Literal
-from typing_extensions import TypedDict
+
+from langchain_core.messages import AIMessageChunk, HumanMessage, SystemMessage
+from langchain_core.tools import tool
+from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import AIMessageChunk, SystemMessage, HumanMessage
-from langchain_core.runnables import RunnableConfig
-from langchain_core.tools import tool
+from typing_extensions import TypedDict
 
 
-llm_model = ChatOpenAI(
-    base_url="http://ollama:11434/v1",
+llm_model = ChatOllama(
+    base_url="http://ollama:11434",
     api_key="dummy-api-key",
     model="ELYZA:8B-Q4_K_M",
     temperature=0,
@@ -24,6 +24,7 @@ llm_model = ChatOpenAI(
 def search(query: str):
     """パーソナル情報を格納したデータベースを検索するAPI"""
     return ["にゃんたは最新技術について紹介しているYouTuberです"]
+
 
 tools = [search]
 llm_model = llm_model.bind_tools(tools)
@@ -74,11 +75,14 @@ graph.add_conditional_edges(
     "agent",
     # 次に呼び出されるノードを決定する関数を渡す
     should_continue,
+    # 次のパスのマップを渡す - このエッジが到達できるすべてのノードを示す
+    ["tools", END],
 )
 graph.add_edge("tools", "agent")
 
 # Graph のコンパイル
 runner = graph.compile()
+
 
 async def main():
     messages = [
@@ -86,22 +90,19 @@ async def main():
         HumanMessage("にゃんたについて教えて"),
     ]
 
-    first = True
-    async for msg, metadata in runner.astream({"messages": messages}, stream_mode="messages"):
-        if msg.content and not isinstance(msg,HumanMessage):
+    async for msg, metadata in runner.astream(
+        {"messages": messages}, stream_mode="messages"
+    ):
+        if msg.content and not isinstance(msg, HumanMessage):
             print(msg.content, flush=True, end="")
 
         if isinstance(msg, AIMessageChunk):
-            if first:
-                gathered = msg
-                first = False
-            else:
-                gathered = gathered + msg
+            gathered = msg
 
             if msg.tool_call_chunks:
                 print(gathered.tool_calls)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-print()
+if __name__ == "__main__":
+    asyncio.run(main())
+    print()

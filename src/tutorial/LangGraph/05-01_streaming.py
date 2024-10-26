@@ -1,15 +1,15 @@
 import asyncio
 from typing import Annotated
-from typing_extensions import TypedDict
+
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import SystemMessage, HumanMessage
-from langchain_core.runnables import RunnableConfig
+from typing_extensions import TypedDict
 
 
-llm_model = ChatOpenAI(
-    base_url="http://ollama:11434/v1",
+llm_model = ChatOllama(
+    base_url="http://ollama:11434",
     api_key="dummy-api-key",
     model="ELYZA:8B-Q4_K_M",
     temperature=0,
@@ -20,9 +20,9 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
-async def chatbot(state: State, config: RunnableConfig):
+async def chatbot(state: State):
     messages = state["messages"]
-    response = await llm_model.ainvoke(messages, config)
+    response = await llm_model.ainvoke(messages)
 
     return {"messages": response}
 
@@ -57,6 +57,6 @@ async def main():
             print(content, flush=True, end="")
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-print()
+if __name__ == "__main__":
+    asyncio.run(main())
+    print()
