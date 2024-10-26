@@ -5,10 +5,14 @@ import langchain_core
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
+from langchain_community.retrievers import BM25Retriever
+from langchain.retrievers import EnsembleRetriever
 from langchain_core.messages import SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.vectorstores import VectorStoreRetriever
+from sudachipy import dictionary
+from sudachipy import tokenizer
 
 from llms.llm_api import fetch_llm_api_model
 from embeddings.huggingface_embedding import load_embedding_model
@@ -83,6 +87,66 @@ def construct_semantic_retriever(
     return semantic_retriever
 
 
+def construct_keyword_retriever(
+    documents: List[langchain_core.documents.Document],
+    k: int = 4,
+) -> BM25Retriever:
+    """
+    Args:
+        documents :
+        k : Amount of documents to return
+    """
+    def preprocess_func(text: str) -> List[str]:
+        tokenizer_obj = dictionary.Dictionary(dict="full").create()
+        mode = tokenizer.Tokenizer.SplitMode.A
+        tokens = tokenizer_obj.tokenize(text ,mode)
+        words = [token.surface() for token in tokens]
+        words = list(set(words))  # 重複削除
+        return words
+
+    bm25_retriever = BM25Retriever.from_documents(
+        documents,
+        preprocess_func=preprocess_func,
+    )
+    bm25_retriever.k = k
+    return bm25_retriever
+
+
+def construct_hybrid_retriever(
+    documents: List[langchain_core.documents.Document],
+    embedding_model: langchain_core.embeddings.Embeddings,
+    semantic_k: int = 4,
+    semantic_score_threshold: float = 0.0,
+    keyword_k: int = 4,
+    weights: List[float] = [0.5, 0.5],
+) -> EnsembleRetriever:
+    """
+    Args:
+        documents :
+        embedding_model :
+        semantic_k : Amount of documents to return
+        semantic_score_threshold : Minimum relevance threshold for similarity_score_threshold
+        k : Amount of documents to return
+        weights :
+    """
+    semantic_retriever = construct_semantic_retriever(
+        documents=documents,
+        embedding_model=embedding_model,
+        k=semantic_k,
+        score_threshold=semantic_score_threshold,
+    )
+
+    keyword_retriever = construct_keyword_retriever(
+        documents=documents,
+        k=keyword_k,
+    )
+
+    return EnsembleRetriever(
+        retrievers=[keyword_retriever, semantic_retriever],
+        weights=[0.5, 0.5],
+    )
+
+
 def format_docs(docs: List[langchain_core.documents.Document]) -> str:
     return f"\n{'-'*100}\n".join(
         [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
@@ -103,10 +167,11 @@ if __name__ == "__main__":
         model_path="/workspace/models/multilingual-e5-large",
     )
 
-    semantic_retriever = construct_semantic_retriever(
+    hybrid_retriever = construct_hybrid_retriever(
         documents=splitted_documents,
         embedding_model=embedding_model,
-        k=3,
+        semantic_k=2,
+        keyword_k=2,
     )
 
     llm_model = fetch_llm_api_model(
@@ -128,7 +193,7 @@ if __name__ == "__main__":
     )
 
     chain = (
-        {"context": semantic_retriever | format_docs, "question": RunnablePassthrough()}
+        {"context": hybrid_retriever | format_docs, "question": RunnablePassthrough()}
         | prompt
         | llm_model
     )

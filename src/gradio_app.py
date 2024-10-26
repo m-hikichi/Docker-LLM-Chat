@@ -45,7 +45,10 @@ def generate_chat_response(
 
 
 def build_chat_ui():
-    chatbot = gr.Chatbot(avatar_images=["icons/user.png", "icons/elyza.png"])
+    chatbot = gr.Chatbot(
+        show_copy_button=True,
+        avatar_images=["icons/user.png", "icons/elyza.png"],
+    )
 
     accordion = gr.Accordion(
         label="詳細設定",
@@ -73,21 +76,6 @@ def build_chat_ui():
         label="Temperature",
     )
 
-    # top_p_slider = gr.Slider(
-    #     minimum=0.05,
-    #     maximum=1.00,
-    #     value=0.95,
-    #     step=0.05,
-    #     label="Top-p",
-    # )
-
-    # top_k_slider = gr.Slider(
-    #     minimum=1,
-    #     maximum=1000,
-    #     value=50,
-    #     label="Top-k",
-    # )
-
     chat_interface = gr.ChatInterface(
         fn=generate_chat_response,
         chatbot=chatbot,
@@ -98,10 +86,11 @@ def build_chat_ui():
         ],
         additional_inputs_accordion=accordion,
         title="Llama-3-ELYZA-JP-8B-demo",
-        submit_btn="送信",
-        retry_btn="🔄 同じ入力でもう一度生成",
-        undo_btn="↩️ ひとつ前の状態に戻る",
-        clear_btn="🗑️ これまでの出力を消す",
+        submit_btn="↑",
+        # retry_btn="🔄 同じ入力でもう一度生成",
+        # undo_btn="↩️ ひとつ前の状態に戻る",
+        # clear_btn="🗑️ これまでの出力を消す",
+
     )
 
     return chat_interface

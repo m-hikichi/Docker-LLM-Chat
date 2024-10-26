@@ -1,12 +1,10 @@
-version: '3'
-
 services:
-  dev:
+  chatbot:
     build:
       context: ../Dockerfile
       dockerfile: Dockerfile
-    image: llm
-    container_name: llm
+    image: chatbot
+    container_name: chatbot
     volumes:
       - ../src:/workspace/src
       - ../models:/workspace/models
@@ -19,7 +17,7 @@ services:
       - PYTHONPATH=/workspace/src/modules
       - OPENAI_API_BASE=http://ollama:11434/v1
       - OPENAI_API_KEY=dummy_api_key
-    entrypoint: sh -c "cd /workspace/src && python3 gradio_app.py"
+    entrypoint: sh -c "cd /workspace/src && python gradio_app.py"
 
     deploy:
       resources:
