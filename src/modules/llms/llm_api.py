@@ -1,9 +1,10 @@
 import os
-from typing import Optional
+from typing import Literal, Optional, Union
 
 import requests
 from langchain_core.messages import SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 
@@ -19,27 +20,44 @@ class LLMAPIException(Exception):
 
 
 def fetch_llm_api_model(
+    llm_type: Literal["openai", "ollama"] = "openai",
     model: str = "gpt-3.5-turbo-instruct",
     temperature: float = 0.7,
     max_tokens: int = 256,
-) -> ChatOpenAI:
+) -> Union[ChatOpenAI, ChatOllama]:
     """
     Args:
+        llm_type : The type of language model to use, either "openai" or "ollama".
         model : Model name to use.
         temperature : What sampling temperature to use.
         max_tokens : The maximum number of tokens to generate in the completion. -1 returns as many tokens as possible given the prompt and the models maximal context size.
     """
     try:
         # Making an API request to fetch models
-        response = requests.get(os.environ["OPENAI_API_BASE"] + "/models")
+        response = requests.get(os.environ["OPENAI_API_BASE"] + "/v1/models")
         response.raise_for_status()  # Automatically handles non-200 status codes
 
-        # Assuming OpenAI is a class that needs these parameters
-        llm_model = ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        if llm_type == "openai":
+            # Assuming ChatOpenAI is a class that needs these parameters
+            llm_model = ChatOpenAI(
+                base_url=os.environ["OPENAI_API_BASE"] + "/v1",
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        elif llm_type == "ollama":
+            # Assuming ChatOllama is a class that needs these parameters
+            llm_model = ChatOllama(
+                base_url=os.environ["OPENAI_API_BASE"],
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        else:
+            # Raise error for unsupported llm_type
+            raise ValueError(
+                f"Unsupported llm_type '{llm_type}'. Supported types are 'openai' and 'ollama'."
+            )
 
         return llm_model
 
