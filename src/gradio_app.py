@@ -1,3 +1,4 @@
+import os
 from typing import List, Tuple
 
 import gradio as gr
@@ -16,7 +17,7 @@ def generate_chat_response(
 ):
     # load llm model
     llm_model = fetch_llm_api_model(
-        model="ELYZA:8B-Q4_K_M",
+        model=os.environ["LLM_API_MODEL_NAME"],
     )
 
     # update parameters
@@ -85,12 +86,11 @@ def build_chat_ui():
             temperature_slider,
         ],
         additional_inputs_accordion=accordion,
-        title="Llama-3-ELYZA-JP-8B-demo",
+        title="Chat with LLM",
         submit_btn="↑",
         # retry_btn="🔄 同じ入力でもう一度生成",
         # undo_btn="↩️ ひとつ前の状態に戻る",
         # clear_btn="🗑️ これまでの出力を消す",
-
     )
 
     return chat_interface

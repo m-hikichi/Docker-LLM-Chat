@@ -1,17 +1,17 @@
 import asyncio
+import os
 from typing import Annotated
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
+from llms.llm_api import fetch_llm_api_model
 
-llm_model = ChatOllama(
-    base_url="http://ollama:11434",
-    api_key="dummy-api-key",
-    model="ELYZA:8B-Q4_K_M",
+llm_model = fetch_llm_api_model(
+    llm_type="ollama",
+    model=os.environ["LLM_API_MODEL_NAME"],
     temperature=0,
 )
 

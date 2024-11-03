@@ -1,18 +1,19 @@
+import os
 from typing import Annotated
-from typing_extensions import TypedDict
+
+from langchain_core.messages import HumanMessage, ToolMessage
 from langchain_core.tools import tool
-from langgraph.graph import StateGraph, END
+from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import ToolMessage, HumanMessage
+from typing_extensions import TypedDict
 
+from llms.llm_api import fetch_llm_api_model
 
-llm = ChatOpenAI(
-    base_url="http://ollama:11434/v1",
-    api_key="dummy-api-key",
-    model="ELYZA:8B-Q4_K_M",
+llm = fetch_llm_api_model(
+    model=os.environ["LLM_API_MODEL_NAME"],
     temperature=0,
 )
+
 
 @tool
 def fake_database_api(query: str) -> str:
@@ -32,13 +33,17 @@ def llm_agent(state):
     state["messages"].append(llm_with_tools.invoke(state["messages"]))
     return state
 
+
 def tool(state):
     tool_by_name = {"fake_database_api": fake_database_api}
     last_message = state["messages"][-1]
     tool_function = tool_by_name[last_message.tool_calls[0]["name"]]
     tool_output = tool_function.invoke(last_message.tool_calls[0]["args"])
-    state["messages"].append(ToolMessage(content=tool_output, tool_call_id=last_message.tool_calls[0]["id"]))
+    state["messages"].append(
+        ToolMessage(content=tool_output, tool_call_id=last_message.tool_calls[0]["id"])
+    )
     return state
+
 
 def router(state):
     last_message = state["messages"][-1]

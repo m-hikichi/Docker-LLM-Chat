@@ -71,7 +71,7 @@ def fetch_llm_api_model(
 if __name__ == "__main__":
     # load llm model
     llm_model = fetch_llm_api_model(
-        model="ELYZA:8B-Q4_K_M",
+        model=os.environ["LLM_API_MODEL_NAME"],
     )
 
     # create prompt

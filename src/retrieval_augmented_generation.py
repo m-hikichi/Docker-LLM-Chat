@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -96,10 +97,11 @@ def construct_keyword_retriever(
         documents :
         k : Amount of documents to return
     """
+
     def preprocess_func(text: str) -> List[str]:
         tokenizer_obj = dictionary.Dictionary(dict="full").create()
         mode = tokenizer.Tokenizer.SplitMode.A
-        tokens = tokenizer_obj.tokenize(text ,mode)
+        tokens = tokenizer_obj.tokenize(text, mode)
         words = [token.surface() for token in tokens]
         words = list(set(words))  # 重複削除
         return words
@@ -175,7 +177,7 @@ if __name__ == "__main__":
     )
 
     llm_model = fetch_llm_api_model(
-        model="ELYZA:8B-Q4_K_M",
+        model=os.environ["LLM_API_MODEL_NAME"],
         temperature=0.2,
         max_tokens=2048,
     )

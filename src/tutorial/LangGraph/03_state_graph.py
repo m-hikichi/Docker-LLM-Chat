@@ -1,14 +1,14 @@
+import os
 from typing import Annotated
-from typing_extensions import TypedDict
+
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
-from langchain_openai import ChatOpenAI
+from typing_extensions import TypedDict
 
+from llms.llm_api import fetch_llm_api_model
 
-llm_model = ChatOpenAI(
-    base_url="http://ollama:11434/v1",
-    api_key="dummy-api-key",
-    model="ELYZA:8B-Q4_K_M",
+llm_model = fetch_llm_api_model(
+    model=os.environ["LLM_API_MODEL_NAME"],
     temperature=0,
 )
 
@@ -17,12 +17,14 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     api_call_count: int
 
+
 # Node の作成
 def chatbot(state: State):
     return {
         "messages": [llm_model.invoke(state["messages"])],
         "api_call_count": state["api_call_count"] + 1,
     }
+
 
 # Graph の作成
 graph = StateGraph(State)

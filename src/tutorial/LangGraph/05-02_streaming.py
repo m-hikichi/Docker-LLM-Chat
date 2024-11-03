@@ -1,21 +1,21 @@
 # reference: https://github.com/langchain-ai/langgraph/blob/ed0f55af85542f7debbc86821f0dc1b547e7ee51/examples/streaming-tokens.ipynb
 
 import asyncio
+import os
 from typing import Annotated, Literal
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
-from langchain_ollama import ChatOllama
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
+from llms.llm_api import fetch_llm_api_model
 
-llm_model = ChatOllama(
-    base_url="http://ollama:11434",
-    api_key="dummy-api-key",
-    model="ELYZA:8B-Q4_K_M",
+llm_model = fetch_llm_api_model(
+    llm_type="ollama",
+    model=os.environ["LLM_API_MODEL_NAME"],
     temperature=0,
 )
 
