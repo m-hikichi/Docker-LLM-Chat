@@ -12,6 +12,10 @@ rank_bm25==0.2.2
 sudachipy==0.6.8
 sudachidict_full==20241021
 
+# Needed for web_search_agent_chatbot
+langgraph==0.2.44
+duckduckgo-search==6.3.3
+
 # accelerate==1.0.1
 
 # llama-cpp-python==0.3.1
