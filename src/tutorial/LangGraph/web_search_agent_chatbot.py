@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Annotated, List, Literal, Tuple
 
@@ -13,17 +14,22 @@ from typing_extensions import TypedDict
 
 from llms.llm_api import fetch_llm_api_model
 
+
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
 
 @tool
-def search(query: str):
+def web_search(query: str):
     """WEB検索を行い、関連する情報を取得するツール"""
     wrapper = DuckDuckGoSearchAPIWrapper(region="jp-jp", max_results=3)
-    search = DuckDuckGoSearchResults(api_wrapper=wrapper, source="text")
+    web_search = DuckDuckGoSearchResults(
+        api_wrapper=wrapper,
+        source="text",
+        output_format="list",
+    )
 
-    return search.invoke(query)
+    return web_search.invoke(query)
 
 
 async def generate_chat_response(
@@ -42,7 +48,7 @@ async def generate_chat_response(
     )
 
     # ツールとノードを設定
-    tools = [search]
+    tools = [web_search]
     llm_model = llm_model.bind_tools(tools)
     tool_node = ToolNode(tools)
 
@@ -77,15 +83,21 @@ async def generate_chat_response(
     messages.append(HumanMessage(message))
 
     response_text = ""
+    reference = ""
     async for event in runner.astream_events({"messages": messages}, version="v1"):
         if event["event"] == "on_chat_model_stream":
             content = event["data"]["chunk"].content
             if content:
                 response_text += content
-                yield response_text
+                yield response_text + reference
         elif event["event"] == "on_tool_start":
             yield "WEB検索中..."
         elif event["event"] == "on_tool_end":
+            if event["name"] == "web_search":
+                for search_result in json.loads(event["data"]["output"].content):
+                    reference += (
+                        f"\n[{search_result['title']}]({search_result['link']})"
+                    )
             yield "回答生成中..."
 
 
@@ -108,7 +120,7 @@ def build_chat_ui():
             ),
         ],
         additional_inputs_accordion=gr.Accordion(label="詳細設定", open=False),
-        title="Llama-3-ELYZA-JP-8B-demo",
+        title="WEB検索チャットボット",
         submit_btn="送信",
     )
 
