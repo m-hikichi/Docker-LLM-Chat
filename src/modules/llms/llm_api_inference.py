@@ -19,7 +19,7 @@ class LLMAPIException(Exception):
         return self.message
 
 
-def fetch_llm_api_model(
+def fetch_model_from_llm_api(
     llm_type: Literal["openai", "ollama"] = "openai",
     model: str = "gpt-3.5-turbo-instruct",
     temperature: float = 0.7,
@@ -70,7 +70,7 @@ def fetch_llm_api_model(
 
 if __name__ == "__main__":
     # load llm model
-    llm_model = fetch_llm_api_model(
+    llm_model = fetch_model_from_llm_api(
         model=os.environ["LLM_API_MODEL_NAME"],
     )
 

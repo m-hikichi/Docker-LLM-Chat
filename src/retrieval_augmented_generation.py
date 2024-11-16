@@ -15,7 +15,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from sudachipy import dictionary
 from sudachipy import tokenizer
 
-from llms.llm_api import fetch_llm_api_model
+from llms.llm_api_inference import fetch_model_from_llm_api
 from embeddings.huggingface_embedding import load_embedding_model
 
 
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         keyword_k=2,
     )
 
-    llm_model = fetch_llm_api_model(
+    llm_model = fetch_model_from_llm_api(
         model=os.environ["LLM_API_MODEL_NAME"],
         temperature=0.2,
         max_tokens=2048,

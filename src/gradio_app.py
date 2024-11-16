@@ -5,7 +5,7 @@ import gradio as gr
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
 
-from llms.llm_api import fetch_llm_api_model
+from llms.llm_api_inference import fetch_model_from_llm_api
 
 
 def generate_chat_response(
@@ -16,7 +16,7 @@ def generate_chat_response(
     temperature: float,
 ):
     # load llm model
-    llm_model = fetch_llm_api_model(
+    llm_model = fetch_model_from_llm_api(
         model=os.environ["LLM_API_MODEL_NAME"],
     )
 

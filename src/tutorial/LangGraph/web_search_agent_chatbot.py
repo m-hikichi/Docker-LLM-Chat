@@ -12,7 +12,7 @@ from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 from typing_extensions import TypedDict
 
-from llms.llm_api import fetch_llm_api_model
+from llms.llm_api_inference import fetch_model_from_llm_api
 
 
 class State(TypedDict):
@@ -40,7 +40,7 @@ async def generate_chat_response(
     temperature: float,
 ):
     # LLMモデルを初期化し、パラメータを設定
-    llm_model = fetch_llm_api_model(
+    llm_model = fetch_model_from_llm_api(
         llm_type="ollama",
         model=os.environ["LLM_API_MODEL_NAME"],
         temperature=temperature,

@@ -7,9 +7,9 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
 from typing_extensions import TypedDict
 
-from llms.llm_api import fetch_llm_api_model
+from llms.llm_api_inference import fetch_model_from_llm_api
 
-llm = fetch_llm_api_model(
+llm = fetch_model_from_llm_api(
     model=os.environ["LLM_API_MODEL_NAME"],
     temperature=0,
 )
