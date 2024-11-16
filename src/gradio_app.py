@@ -2,9 +2,13 @@ import os
 from typing import List, Tuple
 
 import gradio as gr
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.prompts import ChatPromptTemplate
-
+from langchain_core.messages import AIMessage, HumanMessage
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    HumanMessagePromptTemplate,
+    MessagesPlaceholder,
+    SystemMessagePromptTemplate,
+)
 from llms.llm_api_inference import fetch_model_from_llm_api
 
 
@@ -25,22 +29,32 @@ def generate_chat_response(
     llm_model.temperature = temperature
 
     # construct prompt
-    messages = []
-    messages.append(SystemMessage(system_prompt))
+    chat_history = []
     if history:
         for user, assistant in history:
-            messages.append(HumanMessage(user))
-            messages.append(AIMessage(assistant))
-    messages.append(HumanMessage(message))
+            chat_history.append(HumanMessage(user))
+            chat_history.append(AIMessage(assistant))
 
-    prompt = ChatPromptTemplate.from_messages(messages)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            SystemMessagePromptTemplate.from_template("{system_prompt}"),
+            MessagesPlaceholder("chat_history", optional=True),
+            HumanMessagePromptTemplate.from_template("{message}"),
+        ]
+    )
 
     # construct chain
     chain = prompt | llm_model
 
     # inference
     response = ""
-    for text in chain.stream({}):
+    for text in chain.stream(
+        {
+            "system_prompt": system_prompt,
+            "chat_history": chat_history,
+            "message": message,
+        }
+    ):
         response += text.content
         yield response
 
