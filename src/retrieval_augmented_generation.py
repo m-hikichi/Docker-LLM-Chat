@@ -1,161 +1,38 @@
+import asyncio
 import os
-from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Annotated, List
 
 import langchain_core
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import TextLoader
-from langchain_community.vectorstores import FAISS
-from langchain_community.retrievers import BM25Retriever
-from langchain.retrievers import EnsembleRetriever
-from langchain_core.messages import SystemMessage
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.vectorstores import VectorStoreRetriever
-from sudachipy import dictionary
-from sudachipy import tokenizer
+from langchain.schema import StrOutputParser
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
+from typing_extensions import TypedDict
 
-from llms.llm_api_inference import fetch_model_from_llm_api
 from embeddings.huggingface_embedding import load_embedding_model
+from llms.llm_api_inference import fetch_model_from_llm_api
+from retrieve.retrieve import (
+    construct_hybrid_retriever,
+    load_documents,
+    split_documents,
+)
 
 
-def load_documents(
-    path: str,
-) -> List[langchain_core.documents.Document]:
-    """
-    Args:
-        path : Path to directory.
-    """
-    documents = []
-    filepath_list = Path(path).glob("?*.*")
-
-    # load documents
-    for filepath in filepath_list:
-        if filepath.suffix == ".txt":
-            text_loader = TextLoader(str(filepath))
-            documents.extend(text_loader.load())
-        else:
-            print(f"{filepath} has been removed from RAG reference documents.")
-
-    return documents
+class State(TypedDict):
+    messages: Annotated[list, add_messages]
 
 
-def split_documents(
-    documents: Iterable[langchain_core.documents.Document],
-    separators: Optional[List[str]] = ["\n\n", "\n", " ", ""],
-    chunk_size: int = 4000,
-    chunk_overlap: int = 200,
-) -> List[langchain_core.documents.Document]:
-    """
-    Args:
-        documents :
-        separators :
-        chunk_size : Maximum size of chunks to return
-        chunk_overlap : Overlap in characters between chunks
-    """
-    # initialize text splitter
-    text_splitter = RecursiveCharacterTextSplitter(
-        separators=separators,
-        chunk_size=chunk_size,
-        chunk_overlap=chunk_overlap,
+def retrieve_documents(state: State):
+    def format_docs(docs: List[langchain_core.documents.Document]) -> str:
+        return f"\n{'-'*100}\n".join(
+            [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
+        )
+
+    embedding_model = load_embedding_model(
+        model_path="/workspace/models/multilingual-e5-large",
     )
 
-    # split documents
-    return text_splitter.split_documents(documents)
-
-
-def construct_semantic_retriever(
-    documents: List[langchain_core.documents.Document],
-    embedding_model: langchain_core.embeddings.Embeddings,
-    k: int = 4,
-    score_threshold: float = 0.0,
-) -> VectorStoreRetriever:
-    """
-    Args:
-        documents :
-        embedding_model :
-        k : Amount of documents to return
-        score_threshold : Minimum relevance threshold for similarity_score_threshold
-    """
-    #
-    vectorstore = FAISS.from_documents(documents, embedding_model)
-
-    #
-    semantic_retriever = vectorstore.as_retriever(
-        search_type="similarity_score_threshold",
-        search_kwargs={"k": k, "score_threshold": score_threshold},
-    )
-    return semantic_retriever
-
-
-def construct_keyword_retriever(
-    documents: List[langchain_core.documents.Document],
-    k: int = 4,
-) -> BM25Retriever:
-    """
-    Args:
-        documents :
-        k : Amount of documents to return
-    """
-
-    def preprocess_func(text: str) -> List[str]:
-        tokenizer_obj = dictionary.Dictionary(dict="full").create()
-        mode = tokenizer.Tokenizer.SplitMode.A
-        tokens = tokenizer_obj.tokenize(text, mode)
-        words = [token.surface() for token in tokens]
-        words = list(set(words))  # 重複削除
-        return words
-
-    bm25_retriever = BM25Retriever.from_documents(
-        documents,
-        preprocess_func=preprocess_func,
-    )
-    bm25_retriever.k = k
-    return bm25_retriever
-
-
-def construct_hybrid_retriever(
-    documents: List[langchain_core.documents.Document],
-    embedding_model: langchain_core.embeddings.Embeddings,
-    semantic_k: int = 4,
-    semantic_score_threshold: float = 0.0,
-    keyword_k: int = 4,
-    weights: List[float] = [0.5, 0.5],
-) -> EnsembleRetriever:
-    """
-    Args:
-        documents :
-        embedding_model :
-        semantic_k : Amount of documents to return
-        semantic_score_threshold : Minimum relevance threshold for similarity_score_threshold
-        k : Amount of documents to return
-        weights :
-    """
-    semantic_retriever = construct_semantic_retriever(
-        documents=documents,
-        embedding_model=embedding_model,
-        k=semantic_k,
-        score_threshold=semantic_score_threshold,
-    )
-
-    keyword_retriever = construct_keyword_retriever(
-        documents=documents,
-        k=keyword_k,
-    )
-
-    return EnsembleRetriever(
-        retrievers=[keyword_retriever, semantic_retriever],
-        weights=[0.5, 0.5],
-    )
-
-
-def format_docs(docs: List[langchain_core.documents.Document]) -> str:
-    return f"\n{'-'*100}\n".join(
-        [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
-    )
-
-
-if __name__ == "__main__":
     documents = load_documents("/workspace/documents")
 
     splitted_documents = split_documents(
@@ -165,10 +42,6 @@ if __name__ == "__main__":
         chunk_overlap=0,
     )
 
-    embedding_model = load_embedding_model(
-        model_path="/workspace/models/multilingual-e5-large",
-    )
-
     hybrid_retriever = construct_hybrid_retriever(
         documents=splitted_documents,
         embedding_model=embedding_model,
@@ -176,31 +49,65 @@ if __name__ == "__main__":
         keyword_k=2,
     )
 
+    retrieve_chain = hybrid_retriever | format_docs
+
+    for message in reversed(state["messages"]):
+        if isinstance(message, HumanMessage):
+            query = message.content
+
+    return {
+        "messages": ToolMessage(
+            content=retrieve_chain.invoke(query),
+            tool_call_id="",
+        )
+    }
+
+
+def llm_agent(state: State):
     llm_model = fetch_model_from_llm_api(
         model=os.environ["LLM_API_MODEL_NAME"],
         temperature=0.2,
         max_tokens=2048,
     )
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(
-                """あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。
-なおコンテキスト情報に無い情報は回答に含めないでください。
-コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。"""
-            ),
-            HumanMessagePromptTemplate.from_template("# コンテキスト情報\n{context}"),
-            HumanMessagePromptTemplate.from_template("# 質問\n{question}"),
-        ]
-    )
+    messages = ChatPromptTemplate.from_messages(state["messages"])
 
-    chain = (
-        {"context": hybrid_retriever | format_docs, "question": RunnablePassthrough()}
-        | prompt
-        | llm_model
-    )
+    chain = messages | llm_model | StrOutputParser()
 
-    question = "イーブイからニンフィアに進化させる方法を教えてください。"
-    for text in chain.stream(question):
-        print(text.content, flush=True, end="")
+    return {"messages": chain.invoke({})}
+
+
+if __name__ == "__main__":
+    #
+    graph = StateGraph(State)
+
+    # add node
+    graph.add_node("retrieve_documents", retrieve_documents)
+    graph.add_node("llm_agent", llm_agent)
+
+    # add edge
+    graph.add_edge(START, "retrieve_documents")
+    graph.add_edge("retrieve_documents", "llm_agent")
+    graph.add_edge("llm_agent", END)
+
+    # compile graph
+    runner = graph.compile()
+
+    messages = [
+        SystemMessage(
+            "あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。\n"
+            "なおコンテキスト情報に無い情報は回答に含めないでください。\n"
+            "コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。"
+        ),
+        HumanMessage("イーブイからニンフィアに進化させる方法を教えてください。"),
+    ]
+
+    async def run_chat():
+        async for event in runner.astream_events({"messages": messages}, version="v1"):
+            kind = event["event"]
+            if kind == "on_chat_model_stream":
+                content = event["data"]["chunk"].content
+                print(content, flush=True, end="")
+
+    asyncio.run(run_chat())
     print()
