@@ -3,7 +3,10 @@ import os
 from typing import Annotated, List
 
 import langchain_core
+from bs4 import BeautifulSoup
+from googlesearch import search as google_search
 from langchain.schema import StrOutputParser
+from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
 from langgraph.graph import END, START, StateGraph
@@ -15,6 +18,7 @@ from embeddings.huggingface_embedding import load_embedding_model
 from llms.llm_api_inference import fetch_model_from_llm_api
 from retrieve.retrieve import (
     construct_hybrid_retriever,
+    construct_semantic_retriever,
     load_documents,
     split_documents,
 )
@@ -108,9 +112,61 @@ def check_search_online_requirement(state: State):
 
 
 def search_online(state: State):
+    def extract_text_from_html(html_content: str) -> str:
+        soup = BeautifulSoup(html_content, "html.parser")
+        return soup.get_text()
+
+    def format_docs(docs: List[langchain_core.documents.Document]) -> str:
+        return f"\n\n{'-'*100}\n\n".join([doc.page_content for doc in docs])
+
+    for message in state["messages"]:
+        if isinstance(message, HumanMessage):
+            search_query = message.content
+
+    urls = list(
+        google_search(search_query, region="jp", lang="jp", safe=True, num_results=1)
+    )
+
+    if len(urls) == 0:
+        return {
+            "messages": ToolMessage(
+                content="",
+                tool_call_id="",
+            )
+        }
+
+    documents = []
+    web_page_loader = AsyncChromiumLoader(
+        urls=urls,
+        user_agent="Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
+    )
+    documents.extend(web_page_loader.load())
+
+    for document in documents:
+        document.page_content = extract_text_from_html(document.page_content)
+
+    splitted_documents = split_documents(
+        documents=documents,
+        separators=["。"],
+        chunk_size=256,
+        chunk_overlap=0,
+    )
+
+    embedding_model = load_embedding_model(
+        model_path="/workspace/models/multilingual-e5-large",
+    )
+
+    semantic_retriever = construct_semantic_retriever(
+        documents=splitted_documents,
+        embedding_model=embedding_model,
+        k=3,
+    )
+
+    retrieve_chain = semantic_retriever | format_docs
+
     return {
         "messages": ToolMessage(
-            content="生涯において500もの企業設立などにかかわり、“日本近代社会の創造者”と言われる渋沢栄一が肖像に選ばれた新一万円札",
+            content=retrieve_chain.invoke(search_query),
             tool_call_id="",
         )
     }
@@ -158,7 +214,7 @@ if __name__ == "__main__":
             "なおコンテキスト情報に無い情報は回答に含めないでください。\n"
             "コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。"
         ),
-        HumanMessage("新しい一万円札に印刷されている人物を教えて"),
+        HumanMessage("僕のヒーローアカデミアの第7期 第2クールオープニング曲は何ですか"),
     ]
 
     async def run_chat():
