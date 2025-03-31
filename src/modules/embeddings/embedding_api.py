@@ -1,6 +1,6 @@
 import requests
 from typing import Optional
-from langchain_community.embeddings import OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 
 
 class EmbeddingAPIException(Exception):
