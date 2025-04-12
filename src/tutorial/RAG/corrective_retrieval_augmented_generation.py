@@ -1,6 +1,6 @@
 import asyncio
 import os
-from typing import Annotated, List
+from typing import Annotated
 
 import langchain_core
 from bs4 import BeautifulSoup
@@ -8,13 +8,13 @@ from googlesearch import search as google_search
 from langchain.schema import StrOutputParser
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
-from embeddings.huggingface_embedding import load_embedding_model
+from embeddings.embedding_api import fetch_embedding_model
 from llms.llm_api_inference import fetch_model_from_llm_api
 from retrieve.retrieve import (
     construct_hybrid_retriever,
@@ -22,50 +22,16 @@ from retrieve.retrieve import (
     load_documents,
     split_documents,
 )
+from naive_retrieval_augmented_generation import (
+    generate_search_query,
+    retrieve_documents,
+)
 
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-
-
-def retrieve_documents(state: State):
-    def format_docs(docs: List[langchain_core.documents.Document]) -> str:
-        return f"\n{'-'*100}\n".join(
-            [f"Document {i+1}:\n\n" + doc.page_content for i, doc in enumerate(docs)]
-        )
-
-    embedding_model = load_embedding_model(
-        model_path="/workspace/models/multilingual-e5-large",
-    )
-
-    documents = load_documents("/workspace/documents")
-
-    splitted_documents = split_documents(
-        documents=documents,
-        separators=["。"],
-        chunk_size=256,
-        chunk_overlap=0,
-    )
-
-    hybrid_retriever = construct_hybrid_retriever(
-        documents=splitted_documents,
-        embedding_model=embedding_model,
-        semantic_k=2,
-        keyword_k=2,
-    )
-
-    retrieve_chain = hybrid_retriever | format_docs
-
-    for message in reversed(state["messages"]):
-        if isinstance(message, HumanMessage):
-            query = message.content
-
-    return {
-        "messages": ToolMessage(
-            content=retrieve_chain.invoke(query),
-            tool_call_id="",
-        )
-    }
+    search_query: str
+    retriever: langchain_core.retrievers.BaseRetriever
 
 
 def check_search_online_requirement(state: State):
@@ -79,32 +45,20 @@ def check_search_online_requirement(state: State):
     )
     structured_output_llm = llm_model.with_structured_output(ToolPerform)
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            SystemMessage(
-                "質問に対して参照情報から正しい回答を導けるかどうかを判断してください\n"
-                "もし導けない場合は、`search_online`ツールを用いてWEBから情報を取得してください"
-            ),
-            HumanMessagePromptTemplate.from_template(
-                "# 質問\n{question}\n\n" "# 参照情報\n{reference_text}"
-            ),
-        ]
-    )
-
-    for message in reversed(state["messages"]):
-        if isinstance(message, HumanMessage):
-            question = message.content
-        elif isinstance(message, ToolMessage):
-            reference_text = message.content
+    messages = [
+        SystemMessage(
+            "質問に対して参照情報から正しい回答を導けるかどうかを判断してください\n"
+            "もし導けない場合は、`search_online`ツールを用いてWEBから情報を取得してください"
+        )
+    ]
+    messages.extend(state["messages"])
+    prompt = ChatPromptTemplate.from_messages(messages)
 
     chain = prompt | structured_output_llm
-    response = chain.invoke(
-        {
-            "question": question,
-            "reference_text": reference_text,
-        }
-    )
+    response = chain.invoke({})
 
+    if response is None:
+        return "search_online"
     if response.search_online:
         return "search_online"
     else:
@@ -116,12 +70,8 @@ def search_online(state: State):
         soup = BeautifulSoup(html_content, "html.parser")
         return soup.get_text()
 
-    def format_docs(docs: List[langchain_core.documents.Document]) -> str:
-        return f"\n\n{'-'*100}\n\n".join([doc.page_content for doc in docs])
-
-    for message in state["messages"]:
-        if isinstance(message, HumanMessage):
-            search_query = message.content
+    messages = state["messages"]
+    search_query = state["search_query"]
 
     urls = list(
         google_search(search_query, region="jp", lang="jp", safe=True, num_results=1)
@@ -152,8 +102,9 @@ def search_online(state: State):
         chunk_overlap=0,
     )
 
-    embedding_model = load_embedding_model(
-        model_path="/workspace/models/multilingual-e5-large",
+    embedding_model = fetch_embedding_model(
+        base_url="http://ollama:11434",
+        model_name="multilingual-e5-large",
     )
 
     semantic_retriever = construct_semantic_retriever(
@@ -161,15 +112,16 @@ def search_online(state: State):
         embedding_model=embedding_model,
         k=3,
     )
-
-    retrieve_chain = semantic_retriever | format_docs
-
-    return {
-        "messages": ToolMessage(
-            content=retrieve_chain.invoke(search_query),
-            tool_call_id="",
+    retrieve_documents = semantic_retriever.invoke(search_query)
+    for doc in retrieve_documents:
+        messages.append(
+            ToolMessage(
+                content=doc.page_content,
+                tool_call_id="",
+            )
         )
-    }
+
+    return {"messages": messages}
 
 
 def llm_agent(state: State):
@@ -187,16 +139,39 @@ def llm_agent(state: State):
 
 
 if __name__ == "__main__":
-    #
+    embedding_model = fetch_embedding_model(
+        base_url="http://ollama:11434",
+        model_name="multilingual-e5-large",
+    )
+
+    documents = load_documents("/workspace/documents")
+
+    splitted_documents = split_documents(
+        documents=documents,
+        separators=["。"],
+        chunk_size=256,
+        chunk_overlap=0,
+    )
+
+    hybrid_retriever = construct_hybrid_retriever(
+        documents=splitted_documents,
+        embedding_model=embedding_model,
+        semantic_k=2,
+        keyword_k=2,
+    )
+
+    # init graph
     graph = StateGraph(State)
 
     # add node
+    graph.add_node("generate_search_query", generate_search_query)
     graph.add_node("retrieve_documents", retrieve_documents)
     graph.add_node("llm_agent", llm_agent)
     graph.add_node("search_online", search_online)
 
     # add edge
-    graph.add_edge(START, "retrieve_documents")
+    graph.add_edge(START, "generate_search_query")
+    graph.add_edge("generate_search_query", "retrieve_documents")
     graph.add_conditional_edges(
         "retrieve_documents",
         check_search_online_requirement,
@@ -208,19 +183,19 @@ if __name__ == "__main__":
     # compile graph
     runner = graph.compile()
 
+    question = "僕のヒーローアカデミアの第7期 第2クールオープニング曲は何ですか"
     messages = [
-        SystemMessage(
-            "あなたは誠実で優秀な日本人のアシスタントです。以下の「コンテキスト情報」を元に「質問」に回答してください。\n"
-            "なおコンテキスト情報に無い情報は回答に含めないでください。\n"
-            "コンテキスト情報から回答が導けない場合は「わかりません」と回答してください。"
-        ),
-        HumanMessage("僕のヒーローアカデミアの第7期 第2クールオープニング曲は何ですか"),
+        HumanMessage(question),
     ]
 
     async def run_chat():
         async for event in runner.astream_events(
-            {"messages": messages},
-            version="v1",
+            {
+                "messages": messages,
+                "search_query": question,
+                "retriever": hybrid_retriever,
+            },
+            version="v2",
         ):
             kind = event["event"]
             if kind == "on_chat_model_stream":
